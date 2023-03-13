@@ -53,7 +53,7 @@ az sql db show --name $databaseName --resource-group $resourceGroup --server $se
 az sql db replica create -g $resourceGroup -s $serverName -n $databaseName --partner-server $secondaryServer --partner-database $secondaryDatabase --partner-resource-group $secondaryResourceGroup -i --encryption-protector $encryptionProtector --user-assigned-identity-id $umi --keys $keys
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > $keys is a space separated list of keys retrieved from the source database.
 
 - To create a copy of the database, az sql db copy can be used with the same parameters.
@@ -281,7 +281,7 @@ az sql db show --name $databaseName --resource-group $resourceGroup --server $se
 az sql db restore --dest-name $destName --name $databaseName --resource-group $resourceGroup --server $serverName --subscription $subscriptionId --time $timestamp -i --encryption-protector $encryptionProtector --user-assigned-identity-id $umi --keys $keys
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > $keys is a space separated list of keys retrieved from the source database.
 
 # [PowerShell](#tab/azure-powershell)
@@ -318,7 +318,7 @@ For information on installing the current release of Azure CLI, see [Install the
 az sql db show-deleted --name $databaseName --resource-group $resourceGroup --server $serverName --restorable-dropped-database-id "databaseName,133201549661600000" --expand-keys
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > restorable-dropped-database-id can be retrieved by listing all restorable dropped databases in the server and is of the format 'databaseName,deletedTimestamp'
 
 - Select the user assigned identity (and federated client id if configuring cross tenant access).
@@ -329,7 +329,7 @@ az sql db show-deleted --name $databaseName --resource-group $resourceGroup --se
 az sql db restore --dest-name $destName --name $databaseName --resource-group $resourceGroup --server $serverName --subscription $subscriptionId --time $timestamp -i --encryption-protector $encryptionProtector --user-assigned-identity-id $umi --keys $keys --deleted-time "2023-02-06T11:02:46.160000+00:00"
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > $keys is a space separated list of keys retrieved from the source database.
 
 # [PowerShell](#tab/azure-powershell)
@@ -342,11 +342,11 @@ For Az PowerShell module installation instructions, see [Install Azure PowerShel
 $database = Get-AzSqlDeletedDatabaseBackup -ResourceGroupName <ResourceGroupName> -ServerName <ServerName> -DatabaseId "dbName,133201549661600000" -ExpandKeyList -DeletionDate "2/6/2023" -DatabaseName <databaseName>
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > DatabaseId can be retrieved by listing all restorable dropped databases in the server and is of the format 'databaseName,deletedTimestamp'
 
 - Select the user assigned identity (and federated client id if configuring cross tenant access).
-- Use [Restore-AzSqlDatabase](/powershell/module/az.sql/restore-azsqldatabase) with the -FromPointInTimeBackup parameter and provide the pre-populated list of keys obtained from the above steps and the above identity (and federated client id if configuring cross tenant access) in the API call using the -KeyList, -AssignIdentity, -UserAssignedIdentityId, -EncryptionProtector (and -FederatedClientId) parameters.
+- Use [Restore-AzSqlDatabase](/powershell/module/az.sql/restore-azsqldatabase) with the -FromDeletedDatabaseBackup parameter and provide the pre-populated list of keys obtained from the above steps and the above identity (and federated client id if configuring cross tenant access) in the API call using the -KeyList, -AssignIdentity, -UserAssignedIdentityId, -EncryptionProtector (and -FederatedClientId) parameters.
 
 ```powershell
 $database = Get-AzSqlDeletedDatabaseBackup -ResourceGroupName <ResourceGroupName> -ServerName <ServerName> -DatabaseId "dbName,133201549661600000" -ExpandKeyList -DeletionDate <DeletionDate> -DatabaseName <databaseName>
@@ -377,7 +377,7 @@ az sql db geo-backup --database-name $databaseName --g $resourceGroup --server $
 az sql db geo-backup restore --geo-backup-id "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers/{serverName}/recoverableDatabases/{databaseName}" --dest-database $destName --resource-group $resourceGroup --dest-server $destServerName -i --encryption-protector $encryptionProtector --user-assigned-identity-id $umi --keys $keys
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > $keys is a space separated list of keys retrieved from the source database.
 
 # [PowerShell](#tab/azure-powershell)
@@ -390,7 +390,7 @@ For Az PowerShell module installation instructions, see [Install Azure PowerShel
 $database = Get-AzSqlDatabaseGeoBackup -ResourceGroupName <ResourceGroupName> -ServerName <ServerName> -DatabaseName <databaseName> -ExpandKeyList
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > DatabaseId can be retrieved by listing all restorable dropped databases in the server and is of the format 'databaseName,deletedTimestamp'
 
 - Select the user assigned identity (and federated client id if configuring cross tenant access).
@@ -402,6 +402,9 @@ $database = Get-AzSqlDatabaseGeoBackup -ResourceGroupName <ResourceGroupName> -S
 # Create a restored database
 Restore-AzSqlDatabase -FromGeoBackup -ResourceId "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers/{serverName}/recoverableDatabases/{databaseName}" -ResourceGroupName <ResourceGroupName> -ServerName <ServerName> -TargetDatabaseName <TargetDatabaseName> -KeyList $database.Keys.Keys -EncryptionProtector <EncryptionProtector> -UserAssignedIdentityId <UserAssignedIdentityId> -AssignIdentity
 ```
+
+> [!IMPORTANT]
+> Long term retention (LTR) backups don't provide the list of keys used by the backup. To restore an LTR backup all the keys used by the source database must be passed to the LTR restore target.
 
 > [!NOTE]
 > The ARM template highlighted in the Geo Replication section can be referenced to restore the database with an ARM template by changing the createMode parameter.

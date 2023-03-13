@@ -22,7 +22,7 @@ monikerRange: "= azuresql || = azuresql-db"
 > [!NOTE]
 > This preview feature is available for Azure SQL Database (all SQL DB editions). It is not available for Managed Instance, SQL Server 2022 on-premises, Azure VMs and Dedicated SQL Pools (formerly SQL DW).
 
-Azure SQL today offers encryption at rest capability to customers through [transparent data encryption (TDE)](/sql/relational-databases/security/encryption/transparent-data-encryption) with [customer-managed key (CMK)](/azure-sql/database/transparent-data-encryption-byok-overview.md) that enables Bring Your Own Key (BYOK) scenario for data protection at rest wherein the TDE Protector, or the Encryption Key stored in Azure Key Vault which encrypts the Database Encryption Keys, is set at the server level, and is inherited by all encrypted databases associated with that server. This new feature allows setting the TDE Protector as a customer-managed key individually for each database within the server.
+Azure SQL today offers encryption at rest capability to customers through [transparent data encryption (TDE)](/sql/relational-databases/security/encryption/transparent-data-encryption) with [customer-managed key (CMK)](/azure-sql/database/transparent-data-encryption-byok-overview.md) that enables Bring Your Own Key (BYOK) scenario for data protection at rest wherein the TDE Protector, or the Encryption Key stored in Azure Key Vault which encrypts the Database Encryption Keys, is set at the server level, and is inherited by all encrypted databases associated with that server. This new feature allows setting the TDE Protector as a customer-managed key individually for each database within the server. Any Microsoft.Sql/servers/databases resource with a valid, non-empty encryptionProtector property is configured with database level customer-managed keys.
 
 In this scenario, an asymmetric key which is stored in a customer-owned and customer-managed [Azure Key Vault (AKV)](/azure/key-vault/general/security-features), a cloud-based external key management system can be used individually for each database within a server to encrypt the Database Encryption Key (DEK), called TDE protector. There is an option to add keys, remove keys and change the User Assigned Managed identity for each database. For more information on identities, see [Managed identity types](/azure/active-directory/managed-identities-azure-resources/overview#managed-identity-types) in Azure.
 
@@ -69,6 +69,9 @@ Key1 is configured as the customer-managed key at the Server level. A different 
 - Database2 – Key1 used as CMK
 - Database3 – Key1 used as CMK
 
+> [!NOTE]
+> If the server is configured with customer-managed keys, an individual database in this server can't be opted in to use Microsoft managed key for transparent data encryption.
+
 ## New supported scenario: Server configured with Microsoft managed key
 
 Server is configured with Microsoft managed key (SMK). A different customer-managed key (Key2) can be configured at the database level.
@@ -84,6 +87,9 @@ Database1 is configured with a database level customer-managed key while the ser
 
 > [!NOTE]
 > If the server is configured with CMK, the database configured with database level CMK can't be reverted back to server level encryption.
+
+> [!NOTE]
+> Although, the revert operation is only supported if the server is configured with Microsoft managed key, a database configured with database level CMK can be restored to a server configured with with CMK provided the server has access to all the keys being used by the source database with a valid identity.
 
 ## Requirements and recommendations for configuring customer-managed TDE at the database level
 
@@ -118,9 +124,6 @@ In order for the Azure SQL database to use TDE protector stored in AKV for encry
 
 A database configured with database level CMK can be reverted to server level encryption if the server is configured with Microsoft managed key using
 [Invoke-AzSqlDatabaseTransparentDataEncryptionProtectorRevert](/powershell/module/az.sql/invoke-azsqldatabasetransparentdataencryptionprotectorrevert).
-
-> [!NOTE]
-> Although, the revert operation is only supported if the server is configured with Microsoft managed key, a database configured with database level CMK can be restored to a server configured with with CMK provided the server has access to all the keys being used by the source database with a valid identity.
 
 In case of an inaccessible TDE protector as described in [Transparent Data Encryption (TDE) with BYOK](/azure-sql/database/transparent-data-encryption-byok-overview.md), once the key access has been corrected, [Invoke-AzSqlDatabaseTransparentDataEncryptionProtectorRevalidation](/powershell/module/az.sql/invoke-azsqldatabasetransparentdataencryptionprotectorrevalidation) can be used to make the database accessible.
 
@@ -167,16 +170,19 @@ To establish active geo replication for a database which has been configured wit
 - Create a new database as a secondary using [New-AzSqlDatabaseSecondary](/powershell/module/az.sql/new-azsqldatabasesecondary) and provide the pre-populated list of keys obtained from the source database and the above identity (and federated client id if configuring cross tenant access) in the API call using the -KeyList, -AssignIdentity, -UserAssignedIdentityId, -EncryptionProtector (and -FederatedClientId) parameters.
 - For creating a copy of the database, [New-AzSqlDatabaseCopy](/powershell/module/az.sql/new-azsqldatabasecopy) can be used with the same parameters.
 
-> [!NOTE]
+> [!IMPORTANT]
 > A database configured with database level CMK must have a replica (or Copy) configured with database level CMK. The replica can't use server level encryption settings.
 
-In order to use a database configured with database level CMK in a failover group, the above steps to create a secondary replica with the same name as the primary replica must be used on the secondary server. Once this secondary replica is configured the databases can be added to the failover group. Databases configured with database level CMK do not support automated secondary creation on addition to a failover group.
+In order to use a database configured with database level CMK in a failover group, the above steps to create a secondary replica with the same name as the primary replica must be used on the secondary server. Once this secondary replica is configured the databases can be added to the failover group. 
+
+> [!IMPORTANT]
+> Databases configured with database level CMK do not support automated secondary creation on addition to a failover group.
 
 > [!NOTE]
 > [**Geo Replication with and Backup Restore with Database level CMK**](transparent-data-encryption-byok-database-level-geo-replication-restore.md) describes how to setup geo replication and failover groups using REST APIs, Powershell and CLI.
 
 > [!NOTE]
-> All the best practices regarding geo replication and high availability highlighted in [Transparent Data Encryption (TDE) with BYOK](/azure-sql/database/transparent-data-encryption-byok-overview.md) for server level CMK apply to database level CMK.
+> All the best practices regarding geo replication and high availability highlighted in [**Transparent Data Encryption (TDE) with BYOK**](/azure-sql/database/transparent-data-encryption-byok-overview.md) for server level CMK apply to database level CMK.
 
 ## Database backup and restore with customer-managed TDE at the database level
 
@@ -192,6 +198,9 @@ The following steps are needed for a point in time restore of a database configu
 - Pre-populate the list of keys used by the primary database using [Get-AzSqlDatabase](/powershell/module/az.sql/get-azsqldatabase) and the '-ExpandKeyList' parameter. It's recommended to pass all the keys that the source database was using, but alternatively, restore may also be attempted with the keys provided by the deletion time as the '-KeysFilter'.
 - Select the user assigned identity (and federated client id if configuring cross tenant access).
 - Use [Restore-AzSqlDatabase](/powershell/module/az.sql/restore-azsqldatabase) with the -FromPointInTimeBackup parameter and provide the pre-populated list of keys obtained from the above steps and the above identity (and federated client id if configuring cross tenant access) in the API call using the -KeyList, -AssignIdentity, -UserAssignedIdentityId, -EncryptionProtector (and -FederatedClientId) parameters.
+
+> [!NOTE]
+> Restoring a database without the -EncryptionProtector property, with all the valid keys, will reset it to use server level encryption. This can be useful to revert a database level customer-managed key configuration to the server level customer-managed key configuration.
 
 #### Dropped Database Restore
 
@@ -209,7 +218,7 @@ The following steps are needed for a geo restore of a database configured with d
 - Select the user assigned identity (and federated client id if configuring cross tenant access).
 - Use [Restore-AzSqlDatabase](/powershell/module/az.sql/restore-azsqldatabase) with the -FromGeoBackup parameter and provide the pre-populated list of keys obtained from the above steps and the above identity (and federated client id if configuring cross tenant access) in the API call using the -KeyList, -AssignIdentity, -UserAssignedIdentityId, -EncryptionProtector (and -FederatedClientId) parameters.
 
-> [!NOTE]
+> [!IMPORTANT]
 > It's recommended that all the keys used by the database are preserved to restore the database. Additionally, it's also recommended to pass all these keys to the restore target while creation.
 
 > [!NOTE]
