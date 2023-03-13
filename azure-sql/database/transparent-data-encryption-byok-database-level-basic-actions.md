@@ -512,8 +512,6 @@ Use the 2022-08-01-preview REST API for Azure SQL Database.
 POST https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers/{serverName}/databases/{databaseName}/encryptionProtector/current/revert?api-version=2022-08-01-preview
 ```
 
-## Limitations
-
 ## Next steps
 
 You may also want to check the following documentation on various database level CMK operations:
